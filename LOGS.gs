@@ -4,7 +4,7 @@
  */
 function doGet() {
   try {
-    return HtmlService.createHtmlOutputFromFile('LOGOS')
+    return HtmlService.createHtmlOutputFromFile('index')
       .setTitle('Eternel Design Portal')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
@@ -87,3 +87,4 @@ function getSubmissions() {
     return [];
   }
 }
+
