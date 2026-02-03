@@ -8,21 +8,16 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- React & ReactDOM -->
+    <!-- React & ReactDOM CDNs -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    <!-- Babel for JSX -->
+    <!-- Babel for Browser JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://unpkg.com/lucide-react@latest"></script>
-
-    <!-- Firebase App & Services -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <!-- Lucide Icons - Using specific UMD paths for stability -->
+    <script src="https://unpkg.com/lucide@0.447.0/dist/umd/lucide.min.js"></script>
+    <script src="https://unpkg.com/lucide-react@0.447.0/dist/umd/lucide-react.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
@@ -30,11 +25,24 @@
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
         .font-serif { font-family: 'Playfair Display', serif; }
         
-        /* Custom scrollbar for a premium feel */
+        /* Custom scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #fda4af; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #fb7185; }
+
+        @keyframes bounce-subtle {
+            0%, 100% { transform: translate(-50%, 0); }
+            50% { transform: translate(-50%, -10px); }
+        }
+        .notification-float {
+            animation: bounce-subtle 2s infinite ease-in-out;
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+        }
     </style>
 </head>
 <body class="bg-[#fcfdfe]">
@@ -42,43 +50,22 @@
 
     <script type="text/babel">
         const { useState, useEffect } = React;
+        
+        // --- Fix: Safely access global LucideReact object ---
+        const Lucide = window.LucideReact || window.lucideReact || {};
         const { 
             Heart, MapPin, Image: ImageIcon, CheckCircle, Download, 
             Send, PlusCircle, Clock, Trash2, Globe, HardDrive, 
-            Images, Settings, X, Calendar, User, Link: LinkIcon 
-        } = lucideReact;
+            Images, Settings, X, Calendar, User, Link: LinkIcon,
+            ChevronRight, Copy, Info, AlertTriangle
+        } = Lucide;
 
-        // --- Firebase Configuration ---
-        // IMPORTANT: Replace this with your actual Firebase config from the Firebase Console
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
-
-        // Initialize Firebase
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-        const APP_ID = 'wedding-invite-manager';
-
-        // --- Helpers ---
-        const getDirectDriveUrl = (url) => {
-            if (!url) return '';
-            const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-            if (match && match[1]) {
-                return `https://lh3.googleusercontent.com/d/${match[1]}`;
-            }
-            return url;
-        };
-
-        const LOGO_URL = getDirectDriveUrl("https://drive.google.com/file/d/1A9ZVt5Fbh-r2aRnb79-x_6Fj10YVQ4O8/view?usp=sharing");
+        // --- Configuration ---
+        // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
+        const GOOGLE_SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL';
+        
         const AVAILABLE_LANGUAGES = ["English", "Arabic", "French", "Italian", "Spanish", "German", "Turkish"];
+        const LOGO_URL = "https://lh3.googleusercontent.com/d/1A9ZVt5Fbh-r2aRnb79-x_6Fj10YVQ4O8";
 
         // --- Components ---
         const InputField = ({ label, icon: Icon, type = "text", value, onChange, placeholder, required = true }) => (
@@ -99,59 +86,65 @@
         );
 
         const App = () => {
-            const [user, setUser] = useState(null);
-            const [submissions, setSubmissions] = useState([]);
             const [loading, setLoading] = useState(false);
             const [submitted, setSubmitted] = useState(false);
-            const [showAdminTools, setShowAdminTools] = useState(false);
+            const [notification, setNotification] = useState(null);
+            const [configError, setConfigError] = useState(false);
 
             const [formData, setFormData] = useState({
-                brideName: '', groomName: '', weddingDate: '',
+                brideName: '', 
+                groomName: '', 
+                weddingDate: '',
                 languages: ["English", "Arabic"],
-                events: [{ id: Date.now(), title: 'Wedding Ceremony', time: '', venue: '', address: '', maps: '' }],
-                heroImageUrl: '', galleryPhotos: ['', '', '', '', '', ''],
-                driveLink: '', rsvpDeadline: '', hashtag: '', specialNotes: ''
+                driveLink: '', 
+                hashtag: '', 
+                specialNotes: ''
             });
 
             useEffect(() => {
-                const unsubscribe = auth.onAuthStateChanged((user) => {
-                    if (user) {
-                        setUser(user);
-                    } else {
-                        auth.signInAnonymously().catch(err => console.error("Auth Error:", err));
-                    }
-                });
-                return () => unsubscribe();
+                if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('YOUR_GOOGLE_APPS_SCRIPT')) {
+                    setConfigError(true);
+                }
             }, []);
 
-            useEffect(() => {
-                if (!user) return;
-                const submissionsRef = db.collection('submissions');
-                
-                const unsubscribe = submissionsRef.onSnapshot(
-                    (snapshot) => {
-                        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        setSubmissions(data.sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0)));
-                    },
-                    (error) => console.error("Firestore error:", error)
-                );
-                return () => unsubscribe();
-            }, [user]);
+            const notify = (message, type = 'success') => {
+                setNotification({ message, type });
+                setTimeout(() => setNotification(null), 4000);
+            };
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
+                
+                if (configError) {
+                    return notify("Please configure the Google Script URL in the code.", "error");
+                }
+                
                 setLoading(true);
                 try {
-                    await db.collection('submissions').add({
+                    // Prepare data for Google Sheets
+                    const data = {
                         ...formData,
-                        userId: user?.uid || 'anonymous',
-                        submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        languages: formData.languages.join(', '),
+                        submittedAt: new Date().toLocaleString()
+                    };
+
+                    // Send to Google Sheets via Apps Script Web App
+                    // using no-cors because Apps Script doesn't support CORS headers easily
+                    await fetch(GOOGLE_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors', 
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data)
                     });
+
+                    // Since no-cors returns an opaque response, we assume success if no network error occurred
                     setSubmitted(true);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } catch (err) {
                     console.error("Submission error:", err);
-                    alert("Error saving data. Make sure Firestore rules allow writes.");
+                    notify("Network error connecting to Google Sheets.", "error");
                 } finally {
                     setLoading(false);
                 }
@@ -166,33 +159,17 @@
                 }));
             };
 
-            const downloadCSV = () => {
-                if (submissions.length === 0) return;
-                const headers = ["Bride", "Groom", "Date", "Languages", "Hashtag", "Hero Image", "Drive Link", "Submitted At"];
-                const escape = (s) => `"${(s || '').toString().replace(/"/g, '""')}"`;
-                const rows = submissions.map(s => [
-                    escape(s.brideName), escape(s.groomName), escape(s.weddingDate),
-                    escape(s.languages?.join(', ')), escape(s.hashtag), escape(s.heroImageUrl),
-                    escape(s.driveLink), escape(s.submittedAt?.toDate().toLocaleString() || 'N/A')
-                ]);
-                const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
-                const blob = new Blob([csvContent], { type: 'text/csv' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `ETERNEL_Export_${new Date().toISOString().split('T')[0]}.csv`;
-                a.click();
-            };
-
             if (submitted) {
                 return (
                     <div className="min-h-screen bg-[#fafbfc] flex items-center justify-center p-4">
                         <div className="bg-white p-12 rounded-[3rem] shadow-2xl max-w-lg w-full text-center border border-rose-50">
-                            <CheckCircle className="text-rose-500 mx-auto mb-6" size={64} />
+                            <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                {CheckCircle ? <CheckCircle className="text-rose-500" size={40} /> : <div className="text-rose-500 text-3xl">✓</div>}
+                            </div>
                             <h2 className="text-4xl font-serif font-bold text-slate-900 mb-4">Success!</h2>
-                            <p className="text-slate-500 mb-10 text-lg">We've received your questionnaire. Your digital invitation is being prepared.</p>
+                            <p className="text-slate-500 mb-10 text-lg">Your design brief has been sent to the planning spreadsheet.</p>
                             <button onClick={() => setSubmitted(false)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-[0.98]">
-                                Submit New Client
+                                Add New Client
                             </button>
                         </div>
                     </div>
@@ -200,72 +177,92 @@
             }
 
             return (
-                <div className="min-h-screen bg-[#fcfdfe] text-slate-900 selection:bg-rose-100 selection:text-rose-900">
-                    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100 px-6 py-4">
+                <div className="min-h-screen text-slate-900 pb-20">
+                    {/* Setup Warning */}
+                    {configError && (
+                        <div className="bg-amber-100 text-amber-900 px-4 py-3 text-center text-sm font-bold border-b border-amber-200">
+                             ⚠️ Setup Required: Please open the code and replace 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL' with your actual deployment URL.
+                        </div>
+                    )}
+
+                    {notification && (
+                        <div className={`notification-float px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 ${notification.type === 'error' ? 'bg-red-500 text-white' : 'bg-slate-900 text-white'}`}>
+                            {Info && <Info size={18} />}
+                            <span className="font-semibold">{notification.message}</span>
+                        </div>
+                    )}
+
+                    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100 px-6 py-3">
                         <div className="max-w-6xl mx-auto flex justify-between items-center">
                             <div className="flex items-center gap-4">
-                                <img src={LOGO_URL} alt="Eternel Logo" className="h-10 w-auto object-contain rounded-md" />
+                                <img src={LOGO_URL} alt="Logo" className="h-9 w-auto object-contain rounded-md" />
                                 <div>
                                     <h1 className="font-serif text-2xl font-black text-slate-800 leading-none">ETERNEL<span className="text-rose-500">.EG</span></h1>
-                                    <p className="text-[10px] uppercase tracking-widest font-black text-slate-400">Design Portal</p>
+                                    <p className="text-[9px] uppercase tracking-widest font-black text-slate-400">Design Portal</p>
                                 </div>
                             </div>
-                            <button onClick={() => setShowAdminTools(!showAdminTools)} className={`p-2 rounded-xl transition-all ${showAdminTools ? 'bg-rose-50 text-rose-500' : 'text-slate-400 hover:bg-slate-50'}`}>
-                                <Settings size={20} />
-                            </button>
                         </div>
                     </nav>
 
-                    <main className="max-w-4xl mx-auto px-6 py-12 pb-32">
+                    <main className="max-w-4xl mx-auto px-6 py-12">
                         <header className="text-center mb-16 space-y-4">
-                            <div className="inline-block px-4 py-1 bg-rose-50 text-rose-500 rounded-full text-xs font-bold tracking-widest uppercase mb-2">Client Onboarding</div>
-                            <h2 className="text-5xl font-serif font-bold text-slate-900">Design Intake</h2>
-                            <p className="text-slate-500 text-lg max-w-md mx-auto">Please provide the detailed specifications for your custom wedding experience.</p>
+                            <h2 className="text-5xl font-serif font-bold text-slate-900">Wedding Intake</h2>
+                            <p className="text-slate-500 text-lg max-w-md mx-auto italic">Direct to Google Sheets Integration</p>
                         </header>
 
-                        <form onSubmit={handleSubmit} className="space-y-12">
+                        <form onSubmit={handleSubmit} className="space-y-8">
                             <section className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-slate-100">
                                 <div className="flex items-center gap-4 mb-8">
-                                    <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center font-bold">01</div>
-                                    <h3 className="text-2xl font-serif font-bold text-slate-800">The Basics</h3>
+                                    <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center font-black">01</div>
+                                    <h3 className="text-2xl font-serif font-bold text-slate-800">The Couple</h3>
                                 </div>
-                                <div className="grid md:grid-cols-2 gap-8 mb-10">
+                                <div className="grid md:grid-cols-2 gap-6 mb-8">
                                     <InputField label="Bride's Name" icon={User} value={formData.brideName} onChange={e => setFormData({...formData, brideName: e.target.value})} />
                                     <InputField label="Groom's Name" icon={User} value={formData.groomName} onChange={e => setFormData({...formData, groomName: e.target.value})} />
                                     <InputField label="Wedding Date" icon={Calendar} type="date" value={formData.weddingDate} onChange={e => setFormData({...formData, weddingDate: e.target.value})} />
                                     <InputField label="Hashtag" icon={ImageIcon} required={false} placeholder="#Couple2024" value={formData.hashtag} onChange={e => setFormData({...formData, hashtag: e.target.value})} />
                                 </div>
                                 <div className="space-y-4">
-                                    <label className="text-sm font-bold text-slate-600 flex items-center gap-2"><Globe size={14} className="text-rose-400" /> Languages Required</label>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    <label className="text-sm font-bold text-slate-600 flex items-center gap-2">{Globe && <Globe size={14} className="text-rose-400" />} Languages</label>
+                                    <div className="flex flex-wrap gap-2">
                                         {AVAILABLE_LANGUAGES.map(lang => (
-                                            <button key={lang} type="button" onClick={() => handleLanguageToggle(lang)} className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border-2 ${formData.languages.includes(lang) ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-200' : 'bg-white border-slate-100 text-slate-400 hover:border-rose-200'}`}>{lang}</button>
+                                            <button key={lang} type="button" onClick={() => handleLanguageToggle(lang)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border-2 ${formData.languages.includes(lang) ? 'bg-rose-500 border-rose-500 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-rose-200'}`}>{lang}</button>
                                         ))}
                                     </div>
                                 </div>
                             </section>
 
-                            <button type="submit" disabled={loading} className="group relative w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-xl hover:bg-slate-800 shadow-2xl disabled:opacity-50 transition-all active:scale-[0.98]">
-                                <div className="relative z-10 flex items-center justify-center gap-3">
-                                    {loading ? 'Processing...' : (<>Finalize & Submit <Send size={20} /></>)}
+                            <section className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-slate-100">
+                                <div className="flex items-center gap-4 mb-8">
+                                    <div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black">02</div>
+                                    <h3 className="text-2xl font-serif font-bold text-slate-800">Media & Notes</h3>
                                 </div>
+                                <div className="space-y-6">
+                                    <InputField label="Google Drive Link" icon={HardDrive} placeholder="Assets folder link..." value={formData.driveLink} onChange={e => setFormData({...formData, driveLink: e.target.value})} />
+                                    
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-sm font-bold text-slate-600 flex items-center gap-2">
+                                            {PlusCircle && <PlusCircle size={14} className="text-rose-400" />} Special Notes
+                                        </label>
+                                        <textarea 
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-100 focus:border-rose-400 outline-none transition-all placeholder:text-slate-300 text-slate-700 font-medium h-28"
+                                            placeholder="Themes, colors, or special requests..."
+                                            value={formData.specialNotes}
+                                            onChange={e => setFormData({...formData, specialNotes: e.target.value})}
+                                        />
+                                    </div>
+                                </div>
+                            </section>
+
+                            <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-xl hover:bg-slate-800 shadow-2xl transition-all active:scale-[0.98]">
+                                {loading ? 'Sending to Sheet...' : 'Submit to Google Sheets'}
                             </button>
                         </form>
-
-                        {showAdminTools && (
-                            <div className="mt-20 p-10 bg-slate-900 rounded-[3rem] text-white shadow-2xl">
-                                <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-                                    <div className="space-y-2">
-                                        <h4 className="text-2xl font-serif font-bold">Submission Database</h4>
-                                        <p className="text-slate-400">Total Entries: {submissions.length}</p>
-                                    </div>
-                                    <button onClick={downloadCSV} className="flex items-center justify-center gap-3 bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-2xl font-bold shadow-xl">
-                                        <Download size={20} /> Export CSV
-                                    </button>
-                                </div>
-                            </div>
-                        )}
                     </main>
+                    <footer className="mt-20 pt-12 text-center opacity-30 grayscale">
+                        <img src={LOGO_URL} alt="Logo" className="h-6 mx-auto mb-4" />
+                        <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase">Eternel Design &copy; 2024</p>
+                    </footer>
                 </div>
             );
         };
