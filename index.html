@@ -73,7 +73,7 @@
 
         // --- Configuration ---
         // ⚠️ PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL BELOW ⚠️
-        const GOOGLE_SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL';
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxT6-ng0vTQPXP02W-GuDz0XpkBD9IXZeuiyKKsJdX7u5RWh7nQ3wzfI2_AiVTR0_RQ/exec';
         
         const AVAILABLE_LANGUAGES = ["English", "Arabic", "French", "Italian", "Spanish", "German", "Turkish"];
         // Using a gold-tinted logo placeholder or original
@@ -301,7 +301,7 @@
                                         placeholder="#Couple2024" 
                                         value={formData.hashtag} 
                                         onChange={e => setFormData({...formData, hashtag: e.target.value})} 
-                                        description="Optional social media tag for the event."
+                                        description="Will apper in the link extension"
                                     />
                                 </div>
                                 <div className="space-y-4">
@@ -400,7 +400,7 @@
                                         value={formData.heroImageUrl} 
                                         onChange={e => setFormData({...formData, heroImageUrl: e.target.value})} 
                                         placeholder="https://example.com/photo.jpg" 
-                                        description="The primary image that will appear at the top of the invitation."
+                                        description="The main image that will appear at the top of the gallery part as of the DEMO."
                                     />
                                     
                                     <div className="space-y-4">
@@ -424,7 +424,7 @@
 
                                     <div className="grid md:grid-cols-2 gap-8">
                                         <InputField 
-                                            label="Drive Link (Backup)" 
+                                            label="Drive Link (For Full Album)" 
                                             icon={HardDrive} 
                                             required={false} 
                                             value={formData.driveLink} 
@@ -457,13 +457,13 @@
                             </section>
 
                             <button type="submit" disabled={loading} className="w-full bg-stone-900 text-amber-50 py-6 rounded-[2rem] font-black text-xl hover:bg-stone-800 shadow-2xl transition-all active:scale-[0.98] border border-stone-800 hover:border-amber-500/50">
-                                {loading ? 'Submitting to Sheet...' : 'Finalize & Submit Design'}
+                                {loading ? 'Please Wait ...' : 'Finalize & Submit Design'}
                             </button>
                         </form>
                     </main>
                     <footer className="mt-20 pt-12 pb-8 text-center border-t border-stone-200/50">
                         <img src={LOGO_URL} alt="Logo" className="h-6 mx-auto mb-4 opacity-80" />
-                        <p className="text-[10px] font-black tracking-[0.3em] text-amber-700/50 uppercase">Eternel Design Studio &copy; 2024</p>
+                        <p className="text-[10px] font-black tracking-[0.3em] text-amber-700/50 uppercase">Eternel Design  &copy; 2024</p>
                     </footer>
                 </div>
             );
@@ -474,3 +474,4 @@
     </script>
 </body>
 </html>
+
