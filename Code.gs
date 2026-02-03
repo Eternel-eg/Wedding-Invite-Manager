@@ -1,45 +1,131 @@
-// Code.gs
-
-// 1. Serve the HTML page
+/**
+ * Serves the HTML file to the browser.
+ * Make sure you have a file named "index.html" in the same project.
+ */
 function doGet() {
-  return HtmlService.createTemplateFromFile('Index')
-    .evaluate()
-    .setTitle('Wedding Invitation - Layla & Omar')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  try {
+    // We use createTemplateFromFile to allow for potential server-side script tags (<? ?>)
+    // which is more robust for Google Apps Script web apps.
+    const tmp = HtmlService.createTemplateFromFile('index');
+    return tmp.evaluate()
+      .setTitle('Eternel Design Portal')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  } catch (e) {
+    Logger.log('doGet Error: ' + e.toString());
+    return HtmlService.createHtmlOutput(
+      '<h1>Backend Error</h1>' +
+      '<p>The script encountered an error while trying to load the page.</p>' +
+      '<p><b>Possible Reason:</b> You might not have a file named "index" (HTML) in your project sidebar, or there is a syntax error in your HTML code.</p>' +
+      '<pre>' + e.toString() + '</pre>'
+    );
+  }
 }
 
-var html = HtmlService.createHtmlOutputFromFile('Index');
-  
-  // Replace the URL below with a link to your image (must be a direct link)
-  html.setFaviconUrl("https://www.example.com/my-icon.png");
-  html.setTitle("My Web App Title");
-  
-// 2. Handle the RSVP Form Submission
-function processRSVP(formData) {
+/**
+ * DEBUG FUNCTION: Run this manually in the Apps Script editor (press "Run")
+ * to check if your spreadsheet and index file are properly configured.
+ */
+function checkSetup() {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName('RSVP');
-    
-    // If the sheet doesn't exist, create it
-    if (!sheet) {
-      throw new Error("Sheet 'RSVP' not found. Please create a tab named 'RSVP'.");
+    if (!ss) {
+      Logger.log("❌ ERROR: Spreadsheet not found. Is this script bound to a Google Sheet?");
+    } else {
+      Logger.log("✅ SUCCESS: Found Spreadsheet: " + ss.getName());
     }
+    
+    try {
+      HtmlService.createTemplateFromFile('index');
+      Logger.log("✅ SUCCESS: Found 'index.html' file.");
+    } catch(e) {
+      Logger.log("❌ ERROR: Could not find 'index.html'. Please create an HTML file and name it 'index'.");
+    }
+  } catch (e) {
+    Logger.log("❌ CRITICAL ERROR: " + e.toString());
+  }
+}
 
-    // Get values from the form object
-    // formData matches the 'name' attributes in your HTML inputs
-    const name = formData.name;
-    const attendance = formData.attending;
-    const guests = formData.guests || "1"; // Default to 1 if hidden/empty
-    const timestamp = new Date();
+/**
+ * Helper function to safely get the spreadsheet.
+ * Handles cases where the script might not be bound to a sheet.
+ */
+function getTargetSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) {
+    throw new Error("Spreadsheet not found. Please ensure this script is 'Bound' to a Google Sheet (Created via Extensions > Apps Script inside a Sheet).");
+  }
+  
+  let sheet = ss.getSheetByName('Submissions');
+  if (!sheet) {
+    sheet = ss.insertSheet('Submissions');
+    sheet.appendRow([
+      'Timestamp', 'Bride Name', 'Groom Name', 'Wedding Date', 
+      'Languages', 'Hashtag', 'Hero Image', 'Drive Link', 
+      'RSVP Deadline', 'Special Notes'
+    ]);
+    sheet.getRange(1, 1, 1, 10)
+         .setFontWeight('bold')
+         .setBackground('#fff1f2')
+         .setVerticalAlignment('middle');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
 
-    // Append to the sheet
-    sheet.appendRow([timestamp, name, attendance, guests]);
+/**
+ * Handles the data submission from the React frontend.
+ */
+function processForm(formData) {
+  try {
+    const sheet = getTargetSheet();
 
-    return { success: true, message: "RSVP Received successfully!" };
+    sheet.appendRow([
+      new Date(),
+      formData.brideName || '',
+      formData.groomName || '',
+      formData.weddingDate || '',
+      (formData.languages || []).join(', '),
+      formData.hashtag || '',
+      formData.heroImageUrl || '',
+      formData.driveLink || '',
+      formData.rsvpDeadline || '',
+      formData.specialNotes || ''
+    ]);
 
+    return { success: true };
   } catch (error) {
-    Logger.log(error);
-    return { success: false, message: error.toString() };
+    console.error('Form processing error:', error);
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Fetches all submissions from the sheet to display in the Admin panel.
+ */
+function getSubmissions() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) return [];
+    
+    const sheet = ss.getSheetByName('Submissions');
+    if (!sheet) return [];
+    
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return []; // Only headers exist
+    
+    const headers = data.shift(); 
+    
+    return data.map(row => {
+      let obj = {};
+      headers.forEach((header, i) => {
+        const key = header.replace(/\s+/g, '');
+        obj[key] = row[i];
+      });
+      return obj;
+    }).reverse(); 
+  } catch (e) {
+    console.error('Fetch error:', e);
+    return [];
   }
 }
