@@ -8,14 +8,14 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- React & ReactDOM CDNs -->
+    <!-- React & ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    <!-- Babel for Browser JSX -->
+    <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Lucide Icons - Using specific UMD paths for stability -->
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@0.447.0/dist/umd/lucide.min.js"></script>
     <script src="https://unpkg.com/lucide-react@0.447.0/dist/umd/lucide-react.min.js"></script>
 
@@ -51,18 +51,18 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
         
-        // --- Fix: Safely access global LucideReact object ---
+        // Ensure Lucide icons are loaded safely
         const Lucide = window.LucideReact || window.lucideReact || {};
         const { 
             Heart, MapPin, Image: ImageIcon, CheckCircle, Download, 
             Send, PlusCircle, Clock, Trash2, Globe, HardDrive, 
             Images, Settings, X, Calendar, User, Link: LinkIcon,
-            ChevronRight, Copy, Info, AlertTriangle
+            ChevronRight, Copy, Info
         } = Lucide;
 
         // --- Configuration ---
-        // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
-        const GOOGLE_SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL';
+        // ⚠️ PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL BELOW ⚠️
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyBDTdfOeg1EMIXLLB-guBsp7Yedwn247e8PlLUJ3zMxbnauKpzYXvKIRNGErgtZRDzxg/exec';
         
         const AVAILABLE_LANGUAGES = ["English", "Arabic", "French", "Italian", "Spanish", "German", "Turkish"];
         const LOGO_URL = "https://lh3.googleusercontent.com/d/1A9ZVt5Fbh-r2aRnb79-x_6Fj10YVQ4O8";
@@ -96,11 +96,17 @@
                 groomName: '', 
                 weddingDate: '',
                 languages: ["English", "Arabic"],
+                // Complex fields
+                events: [{ id: Date.now(), title: 'Wedding Ceremony', time: '', venue: '', address: '', maps: '' }],
+                heroImageUrl: '', 
+                galleryPhotos: ['', '', '', '', '', ''],
                 driveLink: '', 
+                rsvpDeadline: '', 
                 hashtag: '', 
                 specialNotes: ''
             });
 
+            // Check if URL is configured
             useEffect(() => {
                 if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('YOUR_GOOGLE_APPS_SCRIPT')) {
                     setConfigError(true);
@@ -112,6 +118,40 @@
                 setTimeout(() => setNotification(null), 4000);
             };
 
+            // --- Form Handlers ---
+            const handleLanguageToggle = (lang) => {
+                setFormData(prev => ({
+                    ...prev,
+                    languages: prev.languages.includes(lang) 
+                        ? prev.languages.filter(l => l !== lang) 
+                        : [...prev.languages, lang]
+                }));
+            };
+
+            const handleGalleryChange = (index, value) => {
+                const newGallery = [...formData.galleryPhotos];
+                newGallery[index] = value;
+                setFormData({ ...formData, galleryPhotos: newGallery });
+            };
+
+            const handleEventChange = (index, field, value) => {
+                const newEvents = [...formData.events];
+                newEvents[index][field] = value;
+                setFormData({ ...formData, events: newEvents });
+            };
+
+            const addEvent = () => {
+                setFormData({
+                    ...formData,
+                    events: [...formData.events, { id: Date.now(), title: '', time: '', venue: '', address: '', maps: '' }]
+                });
+            };
+
+            const removeEvent = (index) => {
+                if (formData.events.length <= 1) return;
+                setFormData({ ...formData, events: formData.events.filter((_, i) => i !== index) });
+            };
+
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 
@@ -121,25 +161,28 @@
                 
                 setLoading(true);
                 try {
-                    // Prepare data for Google Sheets
+                    // Format complex data into readable strings for Google Sheets
+                    const formattedEvents = formData.events.map(e => 
+                        `${e.title || 'Event'}: ${e.time || 'TBD'} @ ${e.venue || 'TBD'} (${e.maps || 'No Link'})`
+                    ).join('\n---\n');
+
+                    const formattedGallery = formData.galleryPhotos.filter(p => p).join('\n');
+
                     const data = {
                         ...formData,
                         languages: formData.languages.join(', '),
+                        events: formattedEvents,
+                        galleryPhotos: formattedGallery,
                         submittedAt: new Date().toLocaleString()
                     };
 
-                    // Send to Google Sheets via Apps Script Web App
-                    // using no-cors because Apps Script doesn't support CORS headers easily
                     await fetch(GOOGLE_SCRIPT_URL, {
                         method: 'POST',
-                        mode: 'no-cors', 
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(data)
                     });
 
-                    // Since no-cors returns an opaque response, we assume success if no network error occurred
                     setSubmitted(true);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } catch (err) {
@@ -148,15 +191,6 @@
                 } finally {
                     setLoading(false);
                 }
-            };
-
-            const handleLanguageToggle = (lang) => {
-                setFormData(prev => ({
-                    ...prev,
-                    languages: prev.languages.includes(lang) 
-                        ? prev.languages.filter(l => l !== lang) 
-                        : [...prev.languages, lang]
-                }));
             };
 
             if (submitted) {
@@ -178,7 +212,6 @@
 
             return (
                 <div className="min-h-screen text-slate-900 pb-20">
-                    {/* Setup Warning */}
                     {configError && (
                         <div className="bg-amber-100 text-amber-900 px-4 py-3 text-center text-sm font-bold border-b border-amber-200">
                              ⚠️ Setup Required: Please open the code and replace 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL' with your actual deployment URL.
@@ -211,10 +244,11 @@
                         </header>
 
                         <form onSubmit={handleSubmit} className="space-y-8">
+                            {/* Section 1: The Couple */}
                             <section className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-slate-100">
                                 <div className="flex items-center gap-4 mb-8">
                                     <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center font-black">01</div>
-                                    <h3 className="text-2xl font-serif font-bold text-slate-800">The Couple</h3>
+                                    <h3 className="text-2xl font-serif font-bold text-slate-800">The Basics</h3>
                                 </div>
                                 <div className="grid md:grid-cols-2 gap-6 mb-8">
                                     <InputField label="Bride's Name" icon={User} value={formData.brideName} onChange={e => setFormData({...formData, brideName: e.target.value})} />
@@ -232,14 +266,76 @@
                                 </div>
                             </section>
 
+                            {/* Section 2: Itinerary (Restored) */}
+                            <section className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-slate-100">
+                                <div className="flex items-center justify-between mb-8">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center font-black">02</div>
+                                        <h3 className="text-2xl font-serif font-bold text-slate-800">Itinerary</h3>
+                                    </div>
+                                    <button type="button" onClick={addEvent} className="text-rose-500 font-bold hover:bg-rose-50 px-4 py-2 rounded-xl flex items-center gap-2 transition-colors">
+                                        {PlusCircle && <PlusCircle size={18} />} Add Event
+                                    </button>
+                                </div>
+                                <div className="space-y-8">
+                                    {formData.events.map((event, idx) => (
+                                        <div key={event.id} className="p-8 rounded-3xl bg-slate-50/50 border border-slate-100 relative group">
+                                            <div className="flex justify-between items-center mb-6">
+                                                <input 
+                                                    value={event.title} 
+                                                    onChange={e => handleEventChange(idx, 'title', e.target.value)} 
+                                                    className="bg-transparent border-none p-0 font-bold text-slate-800 text-lg focus:ring-0 w-full"
+                                                    placeholder="Event Name (e.g. Reception)"
+                                                />
+                                                {formData.events.length > 1 && (
+                                                    <button type="button" onClick={() => removeEvent(idx)} className="text-slate-300 hover:text-rose-500 transition-colors">
+                                                        {Trash2 && <Trash2 size={18} />}
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="grid md:grid-cols-2 gap-6">
+                                                <InputField label="Time" icon={Clock} value={event.time} onChange={e => handleEventChange(idx, 'time', e.target.value)} placeholder="8:00 PM" />
+                                                <InputField label="Venue" icon={MapPin} value={event.venue} onChange={e => handleEventChange(idx, 'venue', e.target.value)} placeholder="Grand Ballroom" />
+                                                <InputField label="Maps Link" icon={LinkIcon} required={false} value={event.maps} onChange={e => handleEventChange(idx, 'maps', e.target.value)} placeholder="Google Maps URL" />
+                                                <InputField label="Address" icon={MapPin} required={false} value={event.address} onChange={e => handleEventChange(idx, 'address', e.target.value)} placeholder="Street Name, City" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* Section 3: Media Assets (Restored) */}
                             <section className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-slate-100">
                                 <div className="flex items-center gap-4 mb-8">
-                                    <div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black">02</div>
-                                    <h3 className="text-2xl font-serif font-bold text-slate-800">Media & Notes</h3>
+                                    <div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black">03</div>
+                                    <h3 className="text-2xl font-serif font-bold text-slate-800">Media Assets</h3>
                                 </div>
-                                <div className="space-y-6">
-                                    <InputField label="Google Drive Link" icon={HardDrive} placeholder="Assets folder link..." value={formData.driveLink} onChange={e => setFormData({...formData, driveLink: e.target.value})} />
+                                <div className="space-y-8">
+                                    <InputField label="Hero Image URL (Main Cover)" icon={ImageIcon} value={formData.heroImageUrl} onChange={e => setFormData({...formData, heroImageUrl: e.target.value})} placeholder="https://example.com/photo.jpg" />
                                     
+                                    <div className="space-y-4">
+                                        <label className="text-sm font-bold text-slate-600 flex items-center gap-2">
+                                            {Images && <Images size={14} className="text-rose-400" />} Gallery Photos (Direct URLs)
+                                        </label>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {formData.galleryPhotos.map((photo, idx) => (
+                                                <input 
+                                                    key={idx} 
+                                                    type="text" 
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs placeholder:text-slate-300 focus:ring-2 focus:ring-rose-50 focus:border-rose-200 outline-none" 
+                                                    placeholder={`Photo ${idx+1} URL`} 
+                                                    value={photo} 
+                                                    onChange={e => handleGalleryChange(idx, e.target.value)} 
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid md:grid-cols-2 gap-8">
+                                        <InputField label="Drive Link (Backup)" icon={HardDrive} required={false} value={formData.driveLink} onChange={e => setFormData({...formData, driveLink: e.target.value})} />
+                                        <InputField label="RSVP Deadline" icon={Clock} type="date" value={formData.rsvpDeadline} onChange={e => setFormData({...formData, rsvpDeadline: e.target.value})} />
+                                    </div>
+
                                     <div className="flex flex-col gap-1.5">
                                         <label className="text-sm font-bold text-slate-600 flex items-center gap-2">
                                             {PlusCircle && <PlusCircle size={14} className="text-rose-400" />} Special Notes
@@ -255,7 +351,7 @@
                             </section>
 
                             <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-xl hover:bg-slate-800 shadow-2xl transition-all active:scale-[0.98]">
-                                {loading ? 'Sending to Sheet...' : 'Submit to Google Sheets'}
+                                {loading ? 'Sending to Sheet...' : 'Finalize & Submit'}
                             </button>
                         </form>
                     </main>
