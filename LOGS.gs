@@ -8,7 +8,7 @@
 
 function doGet(e) {
   // serves the Index.html file
-  return HtmlService.createTemplateFromFile('Index')
+  return HtmlService.createTemplateFromFile('LOGOS')
     .evaluate()
     .setTitle('ETERNEL.EG | Design Portal')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
@@ -22,3 +22,4 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename)
       .getContent();
 }
+
