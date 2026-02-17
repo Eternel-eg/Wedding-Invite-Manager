@@ -3,478 +3,254 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Eternel Design Portal</title>
-    
-    <!-- Tailwind CSS -->
+    <title>Open the Envelope</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- React & ReactDOM -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
-    <!-- Babel -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@0.447.0/dist/umd/lucide.min.js"></script>
-    <script src="https://unpkg.com/lucide-react@0.447.0/dist/umd/lucide-react.min.js"></script>
-
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
-        
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .font-serif { font-family: 'Playfair Display', serif; }
-        
-        /* Custom scrollbar - Gold Theme */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f5f5f4; } /* stone-100 */
-        ::-webkit-scrollbar-thumb { background: #d97706; border-radius: 10px; } /* amber-600 */
-        ::-webkit-scrollbar-thumb:hover { background: #b45309; }
-        
-        /* Gold Gradient Text Utility */
-        .text-gold-gradient {
-            background: linear-gradient(to right, #b45309, #fbbf24, #b45309);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-size: 200% auto;
-            animation: shine 3s linear infinite;
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400&display=swap');
+
+        body {
+            font-family: 'Lato', sans-serif;
+            background-color: #f3f4f6;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
         }
 
-        @keyframes shine {
-            to { background-position: 200% center; }
+        /* 3D Stage */
+        .stage {
+            /* Adjusted perspective for better mobile 3D feel */
+            perspective: 1200px;
+            overflow: hidden;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
         }
 
-        @keyframes bounce-subtle {
-            0%, 100% { transform: translate(-50%, 0); }
-            50% { transform: translate(-50%, -10px); }
+        /* Envelope Container */
+        .envelope-wrapper {
+            position: relative;
+            /* FULL WIDTH FOR MOBILE */
+            width: 95vw; /* Almost edge-to-edge */
+            max-width: 600px; /* constrained on desktop */
+            margin: 0 auto;
+            
+            /* GRID LAYOUT: Superimposes layers on Z-axis */
+            display: grid;
+            grid-template-areas: "stack";
+            align-items: end; 
+            
+            cursor: pointer;
+            transform-style: preserve-3d;
+            /* Transition for the slide-down effect */
+            transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .notification-float {
-            animation: bounce-subtle 2s infinite ease-in-out;
+
+        /* -- The Flap Section -- */
+        .flap-wrapper {
+            grid-area: stack; 
+            width: 100%;
+            position: relative;
+            z-index: 20; 
+            
+            /* Hinge at bottom of the flap image */
+            transform-origin: bottom center;
+            /* Slower, smoother easing for "heavy paper" feel */
+            transition: transform 1.4s cubic-bezier(0.25, 1, 0.5, 1);
+            transform-style: preserve-3d;
+        }
+
+        .flap-image {
+            width: 100%;
+            display: block;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            /* Light effect: darkens slightly as it flips up */
+            transition: filter 1.4s ease;
+        }
+
+        /* The Realistic "Inside" of the Flap */
+        .flap-back {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #fdfbf7;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            transform: rotateY(180deg);
+            /* Gradient to simulate crease shadow */
+            background-image: linear-gradient(to bottom, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.1) 100%);
+        }
+
+        /* -- The Body Section -- */
+        .body-wrapper {
+            grid-area: stack; 
+            width: 100%;
+            position: relative;
+            z-index: 10; 
+        }
+        
+        .body-image {
+            width: 100%;
+            display: block;
+            pointer-events: none;
+        }
+
+        /* Animation State */
+        .envelope-wrapper.open {
+            /* Slides the whole envelope DOWN so the open flap doesn't go off-screen */
+            transform: translateY(30%);
+        }
+
+        .envelope-wrapper.open .flap-wrapper {
+            /* Flips UP */
+            transform: rotateX(180deg);
+        }
+        
+        .envelope-wrapper.open .flap-image {
+            /* Dim the front slightly as it faces away */
+            filter: brightness(0.9);
+        }
+
+        /* Page 2 Styles */
+        #page-2 {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 1.5s ease;
             position: fixed;
-            top: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 100;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+        }
+
+        #page-2.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #page-1 {
+            transition: opacity 1s ease;
+        }
+        
+        #page-1.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .img-error {
+            background-color: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            font-size: 0.8rem;
+            min-height: 200px;
+            text-align: center;
+            padding: 20px;
+            border: 2px dashed #ccc;
         }
     </style>
 </head>
-<body class="bg-[#fcfaf8]"> <!-- Warm Stone Background -->
-    <div id="root"></div>
+<body class="bg-stone-100">
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
-        const Lucide = window.LucideReact || window.lucideReact || {};
-        const { 
-            Heart, MapPin, Image: ImageIcon, CheckCircle, Download, 
-            Send, PlusCircle, Clock, Trash2, Globe, HardDrive, 
-            Images, Settings, X, Calendar, User, Link: LinkIcon,
-            ChevronRight, Copy, Info, Crown
-        } = Lucide;
-
-        // --- Configuration ---
-        // ⚠️ PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL BELOW ⚠️
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxT6-ng0vTQPXP02W-GuDz0XpkBD9IXZeuiyKKsJdX7u5RWh7nQ3wzfI2_AiVTR0_RQ/exec';
+    <!-- PAGE 1: The Envelope -->
+    <div id="page-1" class="stage">
         
-        const AVAILABLE_LANGUAGES = ["English", "Arabic", "French", "Italian", "Spanish", "German", "Turkish"];
-        // Using a gold-tinted logo placeholder or original
-        const LOGO_URL = "https://lh3.googleusercontent.com/d/1A9ZVt5Fbh-r2aRnb79-x_6Fj10YVQ4O8";
-
-        // --- Components ---
-        const InputField = ({ label, icon: Icon, type = "text", value, onChange, placeholder, required = true, description }) => (
-            <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold text-stone-700 flex items-center gap-2">
-                    {Icon && <Icon size={14} className="text-amber-600" />}
-                    {label}
-                </label>
-                <input
-                    type={type}
-                    className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-amber-200 focus:border-amber-500 outline-none transition-all placeholder:text-stone-300 text-stone-800 font-medium shadow-sm hover:border-amber-300"
-                    value={value}
-                    onChange={onChange}
-                    placeholder={placeholder}
-                    required={required}
-                />
-                {description && (
-                    <p className="text-[11px] text-stone-500 italic ml-1">{description}</p>
-                )}
+        <!-- Envelope Component (Click Anywhere) -->
+        <div class="envelope-wrapper" id="envelope" onclick="openEnvelope()">
+            
+            <!-- TOP FLAP -->
+            <div class="flap-wrapper">
+                <img src="https://drive.google.com/thumbnail?id=1hwNZMskz7Zd2k3V9w1VvK_0tXTP2R68o&sz=w2000" 
+                     alt="Envelope Flap" 
+                     class="flap-image"
+                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'img-error\'>Image 1 Failed</div>'">
+                
+                <div class="flap-back"></div>
             </div>
-        );
 
-        const App = () => {
-            const [loading, setLoading] = useState(false);
-            const [submitted, setSubmitted] = useState(false);
-            const [notification, setNotification] = useState(null);
-            const [configError, setConfigError] = useState(false);
+            <!-- BOTTOM BODY -->
+            <div class="body-wrapper">
+                <img src="https://drive.google.com/thumbnail?id=1ZwJU_phvAhnLB2ZOxELWNyQI2wzkW-Rd&sz=w2000" 
+                     alt="Envelope Body" 
+                     class="body-image"
+                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'img-error\'>Image 2 Failed</div>'">
+            </div>
 
-            const [formData, setFormData] = useState({
-                brideName: '', 
-                groomName: '', 
-                weddingDate: '',
-                languages: ["English", "Arabic"],
-                // Events now have startTime and endTime
-                events: [{ id: Date.now(), title: 'Wedding Ceremony', startTime: '', endTime: '', venue: '', address: '', maps: '' }],
-                heroImageUrl: '', 
-                galleryPhotos: ['', '', '', '', '', ''],
-                driveLink: '', 
-                rsvpDeadline: '', 
-                hashtag: '', 
-                specialNotes: ''
-            });
+        </div>
 
-            // Check if URL is configured
-            useEffect(() => {
-                if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('YOUR_GOOGLE_APPS_SCRIPT')) {
-                    setConfigError(true);
-                }
-            }, []);
+    </div>
 
-            const notify = (message, type = 'success') => {
-                setNotification({ message, type });
-                setTimeout(() => setNotification(null), 4000);
-            };
+    <!-- PAGE 2: The Content -->
+    <div id="page-2" class="flex flex-col items-center justify-center bg-white p-6">
+        <div class="max-w-2xl w-full text-center border-4 border-double border-stone-200 p-8 md:p-16 rounded-lg shadow-2xl bg-stone-50">
+            
+            <div class="mb-8 text-gold-500">
+                <svg class="w-20 h-20 mx-auto text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v9a2 2 0 002 2z"></path>
+                </svg>
+            </div>
 
-            // --- Form Handlers ---
-            const handleLanguageToggle = (lang) => {
-                setFormData(prev => ({
-                    ...prev,
-                    languages: prev.languages.includes(lang) 
-                        ? prev.languages.filter(l => l !== lang) 
-                        : [...prev.languages, lang]
-                }));
-            };
+            <h2 class="font-playfair text-5xl text-stone-800 mb-6 font-bold">Welcome</h2>
+            
+            <p class="text-stone-600 text-lg leading-relaxed mb-10">
+                You have successfully opened the envelope. This is Page 2. 
+                <br><br>
+                Here you can place your invitation details, special message, or redirect links.
+            </p>
 
-            const handleGalleryChange = (index, value) => {
-                const newGallery = [...formData.galleryPhotos];
-                newGallery[index] = value;
-                setFormData({ ...formData, galleryPhotos: newGallery });
-            };
+            <button onclick="resetEnvelope()" class="text-stone-400 hover:text-stone-600 text-base underline transition-colors">
+                Close and go back
+            </button>
+        </div>
+    </div>
 
-            const handleEventChange = (index, field, value) => {
-                const newEvents = [...formData.events];
-                newEvents[index][field] = value;
-                setFormData({ ...formData, events: newEvents });
-            };
+    <script>
+        function openEnvelope() {
+            const envelope = document.getElementById('envelope');
+            const page1 = document.getElementById('page-1');
+            const page2 = document.getElementById('page-2');
 
-            const addEvent = () => {
-                setFormData({
-                    ...formData,
-                    events: [...formData.events, { id: Date.now(), title: '', startTime: '', endTime: '', venue: '', address: '', maps: '' }]
-                });
-            };
+            // 1. Trigger Open Animation
+            envelope.classList.add('open');
 
-            const removeEvent = (index) => {
-                if (formData.events.length <= 1) return;
-                setFormData({ ...formData, events: formData.events.filter((_, i) => i !== index) });
-            };
-
-            const handleSubmit = async (e) => {
-                e.preventDefault();
+            // 2. Wait for animation to finish, then transition pages
+            setTimeout(() => {
+                // Fade out Page 1
+                page1.classList.add('fade-out');
                 
-                if (configError) {
-                    return notify("Please configure the Google Script URL in the code.", "error");
-                }
-                
-                setLoading(true);
-                try {
-                    // Format events with Time Frame
-                    const formattedEvents = formData.events.map(e => {
-                        const timeFrame = (e.startTime && e.endTime) 
-                            ? `${e.startTime} - ${e.endTime}` 
-                            : (e.startTime || 'TBD');
-                        return `${e.title || 'Event'}: ${timeFrame} @ ${e.venue || 'TBD'} (${e.maps || 'No Link'})`
-                    }).join('\n---\n');
+                // Show Page 2 after fade out
+                setTimeout(() => {
+                    page2.classList.add('active');
+                    // Hide page 1 display entirely to prevent clicks
+                    page1.style.display = 'none';
+                }, 500);
 
-                    const formattedGallery = formData.galleryPhotos.filter(p => p).join('\n');
+            }, 1200); 
+        }
 
-                    const data = {
-                        ...formData,
-                        languages: formData.languages.join(', '),
-                        events: formattedEvents,
-                        galleryPhotos: formattedGallery,
-                        submittedAt: new Date().toLocaleString()
-                    };
+        function resetEnvelope() {
+            const envelope = document.getElementById('envelope');
+            const page1 = document.getElementById('page-1');
+            const page2 = document.getElementById('page-2');
 
-                    await fetch(GOOGLE_SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(data)
-                    });
+            // Fade out Page 2
+            page2.classList.remove('active');
 
-                    setSubmitted(true);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                } catch (err) {
-                    console.error("Submission error:", err);
-                    notify("Network error connecting to Google Sheets.", "error");
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            if (submitted) {
-                return (
-                    <div className="min-h-screen bg-[#fcfaf8] flex items-center justify-center p-4">
-                        <div className="bg-white p-12 rounded-[3rem] shadow-2xl max-w-lg w-full text-center border border-amber-100">
-                            <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                                {CheckCircle ? <CheckCircle className="text-amber-600" size={40} /> : <div className="text-amber-600 text-3xl">✓</div>}
-                            </div>
-                            <h2 className="text-4xl font-serif font-bold text-stone-900 mb-4">Received</h2>
-                            <p className="text-stone-500 mb-10 text-lg">Your Golden Experience is being crafted.</p>
-                            <button onClick={() => setSubmitted(false)} className="w-full bg-stone-900 text-amber-50 py-4 rounded-2xl font-bold hover:bg-stone-800 transition-all shadow-lg active:scale-[0.98] border border-stone-800">
-                                Return To the Request Data
-                            </button>
-                        </div>
-                    </div>
-                );
-            }
-
-            return (
-                <div className="min-h-screen text-stone-900 pb-20">
-                    {configError && (
-                        <div className="bg-amber-100 text-amber-900 px-4 py-3 text-center text-sm font-bold border-b border-amber-200">
-                             ⚠️ Setup Required: Please open the code and replace 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL' with your actual deployment URL.
-                        </div>
-                    )}
-
-                    {notification && (
-                        <div className={`notification-float px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 ${notification.type === 'error' ? 'bg-red-500 text-white' : 'bg-stone-900 text-amber-50'}`}>
-                            {Info && <Info size={18} />}
-                            <span className="font-semibold">{notification.message}</span>
-                        </div>
-                    )}
-
-                    <nav className="sticky top-0 z-50 bg-[#fcfaf8]/80 backdrop-blur-xl border-b border-stone-200 px-6 py-3">
-                        <div className="max-w-6xl mx-auto flex justify-between items-center">
-                            <div className="flex items-center gap-4">
-                                <img src={LOGO_URL} alt="Logo" className="h-9 w-auto object-contain rounded-md" />
-                                <div>
-                                    <h1 className="font-serif text-2xl font-black text-stone-800 leading-none tracking-tight">ETERNEL<span className="text-amber-600">.EG</span></h1>
-                                    <p className="text-[9px] uppercase tracking-widest font-black text-amber-600/60">Luxury Design Portal</p>
-                                </div>
-                            </div>
-                        </div>
-                    </nav>
-
-                    <main className="max-w-4xl mx-auto px-6 py-12">
-                        <header className="text-center mb-16 space-y-4">
-                            <div className="inline-block px-4 py-1.5 bg-amber-50 text-amber-700 rounded-full text-[10px] font-bold tracking-[0.2em] uppercase border border-amber-100 mb-2">
-                                Premium Service
-                            </div>
-                            <h2 className="text-5xl font-serif font-bold text-stone-900">Design Intake</h2>
-                            <p className="text-stone-500 text-lg max-w-md mx-auto italic font-serif">"Elegance is the only beauty that never fades."</p>
-                        </header>
-
-                        <form onSubmit={handleSubmit} className="space-y-8">
-                            {/* Section 1: The Couple */}
-                            <section className="bg-white rounded-[2.5rem] p-10 shadow-xl shadow-stone-200/50 border border-amber-100/50">
-                                <div className="flex items-center gap-4 mb-8">
-                                    <div className="w-10 h-10 bg-stone-900 text-amber-400 rounded-xl flex items-center justify-center font-black border border-stone-800">01</div>
-                                    <h3 className="text-2xl font-serif font-bold text-stone-800">The Couple</h3>
-                                </div>
-                                <div className="grid md:grid-cols-2 gap-6 mb-8">
-                                    <InputField 
-                                        label="Bride's Name" 
-                                        icon={User} 
-                                        value={formData.brideName} 
-                                        onChange={e => setFormData({...formData, brideName: e.target.value})} 
-                                        description="Full name as it should appear on invitations."
-                                    />
-                                    <InputField 
-                                        label="Groom's Name" 
-                                        icon={User} 
-                                        value={formData.groomName} 
-                                        onChange={e => setFormData({...formData, groomName: e.target.value})} 
-                                        description="Full name as it should appear on invitations."
-                                    />
-                                    <InputField 
-                                        label="Wedding Date" 
-                                        icon={Calendar} 
-                                        type="date" 
-                                        value={formData.weddingDate} 
-                                        onChange={e => setFormData({...formData, weddingDate: e.target.value})} 
-                                        description="The primary date of the celebration."
-                                    />
-                                    <InputField 
-                                        label="Hashtag" 
-                                        icon={ImageIcon} 
-                                        required={false} 
-                                        placeholder="#Couple2024" 
-                                        value={formData.hashtag} 
-                                        onChange={e => setFormData({...formData, hashtag: e.target.value})} 
-                                        description="Will apper in the link extension"
-                                    />
-                                </div>
-                                <div className="space-y-4">
-                                    <label className="text-sm font-bold text-stone-600 flex items-center gap-2">{Globe && <Globe size={14} className="text-amber-600" />} Languages</label>
-                                    <p className="text-xs text-stone-400 italic">Select all languages required for the invitation suite.</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {AVAILABLE_LANGUAGES.map(lang => (
-                                            <button 
-                                                key={lang} 
-                                                type="button" 
-                                                onClick={() => handleLanguageToggle(lang)} 
-                                                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all border ${
-                                                    formData.languages.includes(lang) 
-                                                    ? 'bg-stone-900 border-stone-900 text-amber-400 shadow-lg' 
-                                                    : 'bg-white border-stone-200 text-stone-400 hover:border-amber-300 hover:text-amber-600'
-                                                }`}
-                                            >
-                                                {lang}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </section>
-
-                            {/* Section 2: Itinerary (Time Frame Update) */}
-                            <section className="bg-white rounded-[2.5rem] p-10 shadow-xl shadow-stone-200/50 border border-amber-100/50">
-                                <div className="flex items-center justify-between mb-8">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center font-black shadow-lg shadow-amber-200">02</div>
-                                        <h3 className="text-2xl font-serif font-bold text-stone-800">Itinerary</h3>
-                                    </div>
-                                    <button type="button" onClick={addEvent} className="text-amber-700 font-bold hover:bg-amber-50 px-4 py-2 rounded-xl flex items-center gap-2 transition-colors border border-transparent hover:border-amber-200">
-                                        {PlusCircle && <PlusCircle size={18} />} Add Event
-                                    </button>
-                                </div>
-                                <div className="space-y-8">
-                                    {formData.events.map((event, idx) => (
-                                        <div key={event.id} className="p-8 rounded-3xl bg-[#faf9f6] border border-stone-200 relative group transition-all hover:border-amber-300 hover:shadow-md">
-                                            <div className="flex justify-between items-center mb-6">
-                                                <div className="w-full mr-4">
-                                                    <label className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1 block">Event Title</label>
-                                                    <input 
-                                                        value={event.title} 
-                                                        onChange={e => handleEventChange(idx, 'title', e.target.value)} 
-                                                        className="bg-transparent border-b border-stone-300 p-0 py-1 font-serif font-bold text-stone-800 text-xl focus:ring-0 focus:border-amber-500 w-full placeholder:text-stone-300"
-                                                        placeholder="e.g. Wedding Reception"
-                                                    />
-                                                </div>
-                                                {formData.events.length > 1 && (
-                                                    <button type="button" onClick={() => removeEvent(idx)} className="text-stone-300 hover:text-red-500 transition-colors">
-                                                        {Trash2 && <Trash2 size={18} />}
-                                                    </button>
-                                                )}
-                                            </div>
-                                            
-                                            {/* Time Frame Selection */}
-                                            <div className="grid md:grid-cols-2 gap-6 mb-6">
-                                                <InputField 
-                                                    label="Start Time" 
-                                                    icon={Clock} 
-                                                    type="time"
-                                                    value={event.startTime} 
-                                                    onChange={e => handleEventChange(idx, 'startTime', e.target.value)} 
-                                                    description="When does this event begin?"
-                                                />
-                                                <InputField 
-                                                    label="End Time" 
-                                                    icon={Clock} 
-                                                    type="time"
-                                                    value={event.endTime} 
-                                                    onChange={e => handleEventChange(idx, 'endTime', e.target.value)} 
-                                                    description="Estimated conclusion time."
-                                                />
-                                            </div>
-
-                                            <div className="grid md:grid-cols-3 gap-6">
-                                                <InputField label="Venue Name" icon={MapPin} value={event.venue} onChange={e => handleEventChange(idx, 'venue', e.target.value)} placeholder="Grand Ballroom" description="Name of the hall or location." />
-                                                <InputField label="Address" icon={MapPin} required={false} value={event.address} onChange={e => handleEventChange(idx, 'address', e.target.value)} placeholder="Street Name, City" description="Full physical address." />
-                                                <InputField label="Maps Link" icon={LinkIcon} required={false} value={event.maps} onChange={e => handleEventChange(idx, 'maps', e.target.value)} placeholder="Google Maps URL" description="Direct link for navigation." />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-
-                            {/* Section 3: Media Assets */}
-                            <section className="bg-white rounded-[2.5rem] p-10 shadow-xl shadow-stone-200/50 border border-amber-100/50">
-                                <div className="flex items-center gap-4 mb-8">
-                                    <div className="w-10 h-10 bg-stone-900 text-white rounded-xl flex items-center justify-center font-black border border-stone-800">03</div>
-                                    <h3 className="text-2xl font-serif font-bold text-stone-800">Media Assets</h3>
-                                </div>
-                                <div className="space-y-8">
-                                    <InputField 
-                                        label="Hero Image URL (Main Cover)" 
-                                        icon={ImageIcon} 
-                                        value={formData.heroImageUrl} 
-                                        onChange={e => setFormData({...formData, heroImageUrl: e.target.value})} 
-                                        placeholder="https://example.com/photo.jpg" 
-                                        description="The main image that will appear at the top of the gallery part as of the DEMO."
-                                    />
-                                    
-                                    <div className="space-y-4">
-                                        <label className="text-sm font-bold text-stone-600 flex items-center gap-2">
-                                            {Images && <Images size={14} className="text-amber-600" />} Gallery Photos
-                                        </label>
-                                        <p className="text-xs text-stone-400 italic">Provide direct links to images for the sliding gallery.</p>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {formData.galleryPhotos.map((photo, idx) => (
-                                                <input 
-                                                    key={idx} 
-                                                    type="text" 
-                                                    className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-xs placeholder:text-stone-300 focus:ring-2 focus:ring-amber-200 focus:border-amber-500 outline-none transition-all" 
-                                                    placeholder={`Photo URL ${idx+1}`} 
-                                                    value={photo} 
-                                                    onChange={e => handleGalleryChange(idx, e.target.value)} 
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="grid md:grid-cols-2 gap-8">
-                                        <InputField 
-                                            label="Drive Link (For Full Album)" 
-                                            icon={HardDrive} 
-                                            required={false} 
-                                            value={formData.driveLink} 
-                                            onChange={e => setFormData({...formData, driveLink: e.target.value})} 
-                                            description="Folder containing high-res assets if URLs are unavailable."
-                                        />
-                                        <InputField 
-                                            label="RSVP Deadline" 
-                                            icon={Clock} 
-                                            type="date" 
-                                            value={formData.rsvpDeadline} 
-                                            onChange={e => setFormData({...formData, rsvpDeadline: e.target.value})} 
-                                            description="Last day for guests to confirm attendance."
-                                        />
-                                    </div>
-
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-sm font-bold text-stone-600 flex items-center gap-2">
-                                            {PlusCircle && <PlusCircle size={14} className="text-amber-600" />} Special Notes
-                                        </label>
-                                        <textarea 
-                                            className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-amber-200 focus:border-amber-500 outline-none transition-all placeholder:text-stone-300 text-stone-700 font-medium h-28 resize-none shadow-sm"
-                                            placeholder="Themes, color codes or additional instructions..."
-                                            value={formData.specialNotes}
-                                            onChange={e => setFormData({...formData, specialNotes: e.target.value})}
-                                        />
-                                        <p className="text-[11px] text-stone-500 italic ml-1">Any extra details to help us customize your design.</p>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <button type="submit" disabled={loading} className="w-full bg-stone-900 text-amber-50 py-6 rounded-[2rem] font-black text-xl hover:bg-stone-800 shadow-2xl transition-all active:scale-[0.98] border border-stone-800 hover:border-amber-500/50">
-                                {loading ? 'Please Wait ...' : 'Finalize & Submit Design'}
-                            </button>
-                        </form>
-                    </main>
-                    <footer className="mt-20 pt-12 pb-8 text-center border-t border-stone-200/50">
-                        <img src={LOGO_URL} alt="Logo" className="h-6 mx-auto mb-4 opacity-80" />
-                        <p className="text-[10px] font-black tracking-[0.3em] text-amber-700/50 uppercase">Eternel Design &copy; 2025</p>
-                    </footer>
-                </div>
-            );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+            // Reset Page 1 visibility
+            setTimeout(() => {
+                page1.style.display = 'flex';
+                // Force reflow
+                void page1.offsetWidth;
+                page1.classList.remove('fade-out');
+                envelope.classList.remove('open');
+            }, 500);
+        }
     </script>
 </body>
 </html>
-
-
-
-
